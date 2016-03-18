@@ -1,0 +1,30 @@
+{
+  "name": "devebot-co-mongodb",
+  "version": "0.0.1",
+  "description": "Devebot - mongodb bridge",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devebot/devebot-co-mongodb.git"
+  },
+  "keywords": [
+    "devebot",
+    "devebot-bridge"
+  ],
+  "author": "devebot",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/devebot/devebot-co-mongodb/issues"
+  },
+  "homepage": "https://github.com/devebot/devebot-co-mongodb#readme",
+  "peerDependencies": {
+    "devebot": "^0.1.18"
+  },
+  "dependencies": {
+    "devebot": "^0.1.18",
+    "mongojs": "^2.2.2"
+  }
+}
