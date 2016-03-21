@@ -21,10 +21,10 @@
   },
   "homepage": "https://github.com/devebot/devebot-co-mongodb#readme",
   "peerDependencies": {
-    "devebot": "^0.1.18"
+    "devebot": "^0.1.19"
   },
   "dependencies": {
-    "devebot": "^0.1.18",
+    "devebot": "^0.1.19",
     "mongojs": "^2.2.2"
   }
 }
