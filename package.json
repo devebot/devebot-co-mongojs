@@ -1,14 +1,14 @@
 {
-  "name": "devebot-co-mongodb",
+  "name": "devebot-co-mongojs",
   "version": "0.1.3",
-  "description": "Devebot - Mongodb bridge",
+  "description": "Devebot - Mongojs bridge",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/devebot/devebot-co-mongodb.git"
+    "url": "git+https://github.com/devebot/devebot-co-mongojs.git"
   },
   "keywords": [
     "devebot",
@@ -17,9 +17,9 @@
   "author": "devebot",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/devebot/devebot-co-mongodb/issues"
+    "url": "https://github.com/devebot/devebot-co-mongojs/issues"
   },
-  "homepage": "https://github.com/devebot/devebot-co-mongodb#readme",
+  "homepage": "https://github.com/devebot/devebot-co-mongojs#readme",
   "peerDependencies": {
     "devebot": "^0.1.21"
   },
