@@ -1,46 +1,40 @@
 'use strict';
 
-var events = require('events');
-var util = require('util');
+const async = require('async');
+const mongojs = require('mongojs');
+const ObjectId = mongojs.ObjectId;
 
-var async = require('async');
-var mongojs = require('mongojs');
-var ObjectId = mongojs.ObjectId;
+const Devebot = require('devebot');
+const Promise = Devebot.require('bluebird');
+const lodash = Devebot.require('lodash');
+const debugx = Devebot.require('pinbug')('devebot:co:mongojs:bridge');
+const chores = require('./utils/chores');
 
-var Devebot = require('devebot');
-var Promise = Devebot.require('bluebird');
-var lodash = Devebot.require('lodash');
-var debugx = Devebot.require('pinbug')('devebot:co:mongojs:bridge');
-
-var chores = require('./utils/chores');
-
-var noop = function() {};
-
-var Service = function(params) {
+function Service(params) {
   debugx.isEnabled && debugx(' + constructor start ...');
 
   params = params || {};
 
-  var self = this;
+  let self = this;
 
-  var LX = params.logger || chores.emptyLogger;
-  var LT = params.tracer;
+  let LX = params.logger || chores.emptyLogger;
+  let LT = params.tracer;
 
-  var tracking_code = params.tracking_code || (new Date()).toISOString();
+  let tracking_code = params.tracking_code || (new Date()).toISOString();
 
   self.getTrackingCode = function() {
     return tracking_code;
   };
 
-  var mongo_conf = params.connection_options || {};
-  var mongo_connection_string = chores.buildMongodbUrl(mongo_conf);
+  let mongo_conf = params.connection_options || {};
+  let mongo_connection_string = chores.buildMongodbUrl(mongo_conf);
 
   self.mongo_cols = params.cols || {};
   self.mongojs = mongojs(mongo_connection_string, lodash.values(self.mongo_cols));
   let _client = self.mongojs;
 
   self.getServiceInfo = function() {
-    var conf = lodash.pick(mongo_conf, ['host', 'port', 'name', 'username', 'password']);
+    let conf = lodash.pick(mongo_conf, ['host', 'port', 'name', 'username', 'password']);
     lodash.assign(conf, { password: '***' });
     return {
       connection_info: conf,
@@ -50,7 +44,7 @@ var Service = function(params) {
   };
 
   self.getServiceHelp = function() {
-    var info = self.getServiceInfo();
+    let info = self.getServiceInfo();
     return [{
       type: 'record',
       title: 'MongoDB bridge',
@@ -68,19 +62,19 @@ var Service = function(params) {
   };
 
   this.close = function() {
-    var self = this;
+    let self = this;
     return self.mongojs.close();
   }
 
   this.stats = function() {
-    var self = this;
+    let self = this;
     return Promise.promisify(function(callback) {
       _client.stats(callback);
     })();
   };
   
   this.getCollectionNames = function() {
-    var self = this;
+    let self = this;
     return Promise.promisify(function(callback) {
       _client.getCollectionNames(function(err, collectionNames) {
         callback(err, collectionNames);
@@ -89,7 +83,7 @@ var Service = function(params) {
   };
   
   this.countDocuments = function(entity, criteria) {
-    var self = this;
+    let self = this;
     if (!lodash.isObject(criteria)) criteria = {};
     return Promise.promisify(function(callback) {
       _client.collection(entity).count(criteria, function(err, result) {
@@ -99,7 +93,7 @@ var Service = function(params) {
   };
   
   this.findDocuments = function(entity, criteria, start, limit) {
-    var self = this;
+    let self = this;
     return Promise.promisify(function(from, size, callback) {
       _client.collection(entity).find(criteria).skip(from).limit(size).toArray(function(err, docs) {
         callback(err, docs);
@@ -108,7 +102,7 @@ var Service = function(params) {
   };
   
   this.getDocuments = function(entity, start, limit) {
-    var self = this;
+    let self = this;
     return Promise.promisify(function(from, size, callback) {
       _client.collection(entity).find({
       }).skip(from).limit(size).toArray(function(err, docs) {
@@ -118,7 +112,7 @@ var Service = function(params) {
   };
   
   this.findOneDocument = function(entity, criteria) {
-    var self = this;
+    let self = this;
     return Promise.promisify(function(callback) {
       _client.collection(entity).findOne(criteria, function(err, obj) {
         if (err) {
@@ -134,7 +128,7 @@ var Service = function(params) {
   };
   
   this.getDocumentById = function(entity, id) {
-    var self = this;
+    let self = this;
     return Promise.promisify(function(callback) {
       if (lodash.isEmpty(id)) {
         callback({name: 'documentId_is_empty', entity: entity});
@@ -159,7 +153,7 @@ var Service = function(params) {
   };
   
   this.getDocumentsByIds = function(entityName, documentIds) {
-    var self = this;
+    let self = this;
     LX.has('info') && LX.log('info', '<%s> + getDocumentsByIds("%s", "%s")', self.getTrackingCode(),
         entityName, JSON.stringify(documentIds));
   
@@ -196,13 +190,13 @@ var Service = function(params) {
   };
   
   this.getOneToManyTargetsBySourceId = function(entityName, sourceIdName, sourceId) {
-    var self = this;
+    let self = this;
     return Promise.promisify(function(callback) {
       if (!(sourceId instanceof ObjectId)) {
         sourceId = ObjectId(sourceId);
       }
   
-      var criteria = {};
+      let criteria = {};
       criteria[sourceIdName] = sourceId;
   
       _client.collection(entityName).find(criteria).toArray(function(err, docs) {
@@ -212,8 +206,8 @@ var Service = function(params) {
   };
   
   this.getHierarchicalDocumentsToTop = function(entity, documentId) {
-    var self = this;
-    var documents = [];
+    let self = this;
+    let documents = [];
     return Promise.promisify(function(callback) {
       async.whilst(function() {
         return (!lodash.isEmpty(documentId));
@@ -234,9 +228,9 @@ var Service = function(params) {
   };
   
   this.getChainToTopOfHierarchicalDocumentsByIds = function(entityName, documentIds) {
-    var self = this;
-    var documents = [];
-    var scanDocuments = function(callback) {
+    let self = this;
+    let documents = [];
+    let scanDocuments = function(callback) {
       async.eachSeries(documentIds, function(documentId, done_each) {
         self.getHierarchicalDocumentsToTop(entityName, documentId).then(function(chain) {
           if (lodash.isArray(chain) && chain.length > 0) {
@@ -256,7 +250,7 @@ var Service = function(params) {
   };
   
   this.insertDocument = function(entity, documents) {
-    var self = this;
+    let self = this;
     return Promise.promisify(function (done) {
       _client.collection(entity).insert(documents, function(err, result) {
         if (err) {
@@ -272,9 +266,9 @@ var Service = function(params) {
   };
   
   this.updateDocument = function(entity, criteria, data, options) {
-    var self = this;
+    let self = this;
     options = options || {multi: true, upsert: false};
-    var promisee = function (done) {
+    let promisee = function (done) {
       _client.collection(entity).update(criteria, {$set: data}, options, function(err, info) {
         if (err) {
           LX.has('info') && LX.log('info', '<%s> - update %s document: %s with options %s and criteria %s has error: %s', self.getTrackingCode(),
@@ -290,8 +284,8 @@ var Service = function(params) {
   };
   
   this.deleteDocument = function(entityName, criteria) {
-    var self = this;
-    var promisee = function (done) {
+    let self = this;
+    let promisee = function (done) {
       _client.collection(entityName).remove(criteria, function(err, result) {
         if (err) {
           LX.has('info') && LX.log('info', '<%s> - delete %s document with criteria %s has error: %s', self.getTrackingCode(),
@@ -307,19 +301,19 @@ var Service = function(params) {
   };
   
   this.getDocumentSummary = function() {
-    var self = this;
+    let self = this;
     return Promise.resolve().then(function() {
       return self.getCollectionNames();
     }).then(function(collectionNames) {
-      var coldefs = self.getServiceInfo().collection_defs;
-      var collection_names = lodash.intersection(lodash.values(coldefs), collectionNames);
+      let coldefs = self.getServiceInfo().collection_defs;
+      let collection_names = lodash.intersection(lodash.values(coldefs), collectionNames);
       return Promise.mapSeries(collection_names, function(collection_name) {
         return self.countDocuments(collection_name);
       }).then(function(counts) {
         counts = counts || [];
-        var countLabels = {};
-        var countResult = {};
-        for(var i=0; i<counts.length; i++) {
+        let countLabels = {};
+        let countResult = {};
+        for(let i=0; i<counts.length; i++) {
           countLabels[collection_names[i]] = collection_names[i];
           countResult[collection_names[i]] = counts[i];
         }
