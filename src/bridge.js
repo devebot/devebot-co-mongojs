@@ -7,12 +7,9 @@ const ObjectId = mongojs.ObjectId;
 const Devebot = require('devebot');
 const Promise = Devebot.require('bluebird');
 const lodash = Devebot.require('lodash');
-const debugx = Devebot.require('pinbug')('devebot:co:mongojs:bridge');
 const chores = require('./utils/chores');
 
 function Service(params) {
-  debugx.isEnabled && debugx(' + constructor start ...');
-
   params = params || {};
 
   let self = this;
@@ -61,9 +58,9 @@ function Service(params) {
     }];
   };
 
-  this.close = function() {
-    let self = this;
-    return self.mongojs.close();
+  this.close = function(forced) {
+    let db_close = Promise.promisify(_client.close, { context: _client });
+    return db_close(forced);
   }
 
   this.stats = function() {
@@ -324,8 +321,6 @@ function Service(params) {
       });
     });
   };
-
-  debugx.isEnabled && debugx(' - constructor has finished');
 };
 
 module.exports = Service;

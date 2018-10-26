@@ -39,7 +39,7 @@
   "dependencies": {
     "async": "^2.6.1",
     "devebot": "^0.2.6",
-    "mongojs": "^2.5.0"
+    "mongojs": "^2.6.0"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
