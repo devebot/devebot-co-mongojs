@@ -26,9 +26,23 @@ function Service(params) {
   let mongo_conf = params.connection_options || {};
   let mongo_connection_string = chores.buildMongodbUrl(mongo_conf);
 
+  let _client = null;
+  let getClient = function () {
+    return _client = _client || mongojs(mongo_connection_string, lodash.values(self.mongo_cols));
+  }
+  let closeClient = function (forced) {
+    if (_client == null) return Promise.resolve();
+    let db_close = Promise.promisify(_client.close, { context: _client });
+    _client = null;
+    return db_close(forced);
+  }
+
   self.mongo_cols = params.cols || {};
-  self.mongojs = mongojs(mongo_connection_string, lodash.values(self.mongo_cols));
-  let _client = self.mongojs;
+
+  Object.defineProperty(self, 'mongojs', {
+    get: function() { return getClient() },
+    set: function(val) {}
+  })
 
   self.getServiceInfo = function() {
     let conf = lodash.pick(mongo_conf, ['host', 'port', 'name', 'username', 'password']);
@@ -59,21 +73,20 @@ function Service(params) {
   };
 
   this.close = function(forced) {
-    let db_close = Promise.promisify(_client.close, { context: _client });
-    return db_close(forced);
+    return closeClient(forced);
   }
 
   this.stats = function() {
     let self = this;
     return Promise.promisify(function(callback) {
-      _client.stats(callback);
+      getClient().stats(callback);
     })();
   };
   
   this.getCollectionNames = function() {
     let self = this;
     return Promise.promisify(function(callback) {
-      _client.getCollectionNames(function(err, collectionNames) {
+      getClient().getCollectionNames(function(err, collectionNames) {
         callback(err, collectionNames);
       });
     })();
@@ -83,7 +96,7 @@ function Service(params) {
     let self = this;
     if (!lodash.isObject(criteria)) criteria = {};
     return Promise.promisify(function(callback) {
-      _client.collection(entity).count(criteria, function(err, result) {
+      getClient().collection(entity).count(criteria, function(err, result) {
         callback(err, result);
       });
     })();
@@ -92,7 +105,7 @@ function Service(params) {
   this.findDocuments = function(entity, criteria, start, limit) {
     let self = this;
     return Promise.promisify(function(from, size, callback) {
-      _client.collection(entity).find(criteria).skip(from).limit(size).toArray(function(err, docs) {
+      getClient().collection(entity).find(criteria).skip(from).limit(size).toArray(function(err, docs) {
         callback(err, docs);
       });
     })(start, limit);
@@ -101,7 +114,7 @@ function Service(params) {
   this.getDocuments = function(entity, start, limit) {
     let self = this;
     return Promise.promisify(function(from, size, callback) {
-      _client.collection(entity).find({
+      getClient().collection(entity).find({
       }).skip(from).limit(size).toArray(function(err, docs) {
         callback(err, docs);
       });
@@ -111,7 +124,7 @@ function Service(params) {
   this.findOneDocument = function(entity, criteria) {
     let self = this;
     return Promise.promisify(function(callback) {
-      _client.collection(entity).findOne(criteria, function(err, obj) {
+      getClient().collection(entity).findOne(criteria, function(err, obj) {
         if (err) {
           LX.has('info') && LX.log('info', '<%s> - findOneDocument("%s", "%s") has error: %s', self.getTrackingCode(),
               entity, JSON.stringify(criteria), JSON.stringify(err));
@@ -134,7 +147,7 @@ function Service(params) {
       if (!(id instanceof ObjectId)) {
         id = ObjectId(id);
       }
-      _client.collection(entity).findOne({
+      getClient().collection(entity).findOne({
         _id: id
       }, function(err, obj) {
         if (err) {
@@ -169,7 +182,7 @@ function Service(params) {
         }
       });
   
-      _client.collection(entityName).find({
+      getClient().collection(entityName).find({
         _id: {
           $in: documentIds
         }
@@ -196,7 +209,7 @@ function Service(params) {
       let criteria = {};
       criteria[sourceIdName] = sourceId;
   
-      _client.collection(entityName).find(criteria).toArray(function(err, docs) {
+      getClient().collection(entityName).find(criteria).toArray(function(err, docs) {
         callback(err, docs);
       });
     })();
@@ -249,7 +262,7 @@ function Service(params) {
   this.insertDocument = function(entity, documents) {
     let self = this;
     return Promise.promisify(function (done) {
-      _client.collection(entity).insert(documents, function(err, result) {
+      getClient().collection(entity).insert(documents, function(err, result) {
         if (err) {
           LX.has('info') && LX.log('info', '<%s> - insert documents %s of %s error: %s', self.getTrackingCode(),
               JSON.stringify(documents), entity, err);
@@ -266,7 +279,7 @@ function Service(params) {
     let self = this;
     options = options || {multi: true, upsert: false};
     let promisee = function (done) {
-      _client.collection(entity).update(criteria, {$set: data}, options, function(err, info) {
+      getClient().collection(entity).update(criteria, {$set: data}, options, function(err, info) {
         if (err) {
           LX.has('info') && LX.log('info', '<%s> - update %s document: %s with options %s and criteria %s has error: %s', self.getTrackingCode(),
               entity, JSON.stringify(data), JSON.stringify(options), JSON.stringify(criteria), err);
@@ -283,7 +296,7 @@ function Service(params) {
   this.deleteDocument = function(entityName, criteria) {
     let self = this;
     let promisee = function (done) {
-      _client.collection(entityName).remove(criteria, function(err, result) {
+      getClient().collection(entityName).remove(criteria, function(err, result) {
         if (err) {
           LX.has('info') && LX.log('info', '<%s> - delete %s document with criteria %s has error: %s', self.getTrackingCode(),
               entityName, JSON.stringify(criteria), err);

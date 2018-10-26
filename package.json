@@ -28,7 +28,7 @@
     "devebot-bridge"
   ],
   "author": "devebot",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/devebot/devebot-co-mongojs/issues"
   },
