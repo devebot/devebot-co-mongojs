@@ -12,24 +12,30 @@ const chores = require('./utils/chores');
 function Service(params) {
   params = params || {};
 
-  let self = this;
-
   let LX = params.logger || chores.emptyLogger;
   let LT = params.tracer;
 
   let tracking_code = params.tracking_code || (new Date()).toISOString();
 
-  self.getTrackingCode = function() {
+  this.getTrackingCode = function() {
     return tracking_code;
   };
 
-  let mongo_conf = params.connection_options || {};
-  let mongo_connection_string = chores.buildMongodbUrl(mongo_conf);
+  let enabled = lodash.isBoolean(params.enabled) ? params.enabled : true;
+  let mongo_conf = params.connection_options || params;
+  let mongo_cols = params.cols || {};
+
+  let connection_string = params.connection_string || params.url;
+  if (!lodash.isString(connection_string) || lodash.isEmpty(connection_string)) {
+    connection_string = chores.buildMongodbUrl(mongo_conf);
+  }
 
   let _client = null;
+
   let getClient = function () {
-    return _client = _client || mongojs(mongo_connection_string, lodash.values(self.mongo_cols));
+    return _client = _client || mongojs(connection_string, lodash.values(mongo_cols));
   }
+
   let closeClient = function (forced) {
     if (_client == null) return Promise.resolve();
     let db_close = Promise.promisify(_client.close, { context: _client });
@@ -37,25 +43,23 @@ function Service(params) {
     return db_close(forced);
   }
 
-  self.mongo_cols = params.cols || {};
-
-  Object.defineProperty(self, 'mongojs', {
+  Object.defineProperty(this, 'mongojs', {
     get: function() { return getClient() },
     set: function(val) {}
   })
 
-  self.getServiceInfo = function() {
+  this.getServiceInfo = function() {
     let conf = lodash.pick(mongo_conf, ['host', 'port', 'name', 'username', 'password']);
     lodash.assign(conf, { password: '***' });
     return {
       connection_info: conf,
       url: chores.buildMongodbUrl(conf),
-      collection_defs: self.mongo_cols
+      collection_defs: mongo_cols
     };
   };
 
-  self.getServiceHelp = function() {
-    let info = self.getServiceInfo();
+  this.getServiceHelp = function() {
+    let info = this.getServiceInfo();
     return [{
       type: 'record',
       title: 'MongoDB bridge',
@@ -82,7 +86,7 @@ function Service(params) {
       getClient().stats(callback);
     })();
   };
-  
+
   this.getCollectionNames = function() {
     let self = this;
     return Promise.promisify(function(callback) {
@@ -91,7 +95,7 @@ function Service(params) {
       });
     })();
   };
-  
+
   this.countDocuments = function(entity, criteria) {
     let self = this;
     if (!lodash.isObject(criteria)) criteria = {};
@@ -101,7 +105,7 @@ function Service(params) {
       });
     })();
   };
-  
+
   this.findDocuments = function(entity, criteria, start, limit) {
     let self = this;
     return Promise.promisify(function(from, size, callback) {
@@ -110,7 +114,7 @@ function Service(params) {
       });
     })(start, limit);
   };
-  
+
   this.getDocuments = function(entity, start, limit) {
     let self = this;
     return Promise.promisify(function(from, size, callback) {
@@ -120,7 +124,7 @@ function Service(params) {
       });
     })(start, limit);
   };
-  
+
   this.findOneDocument = function(entity, criteria) {
     let self = this;
     return Promise.promisify(function(callback) {
@@ -136,7 +140,7 @@ function Service(params) {
       });
     })();
   };
-  
+
   this.getDocumentById = function(entity, id) {
     let self = this;
     return Promise.promisify(function(callback) {
@@ -161,19 +165,19 @@ function Service(params) {
       });
     })();
   };
-  
+
   this.getDocumentsByIds = function(entityName, documentIds) {
     let self = this;
     LX.has('info') && LX.log('info', '<%s> + getDocumentsByIds("%s", "%s")', self.getTrackingCode(),
         entityName, JSON.stringify(documentIds));
-  
+
     return Promise.promisify(function(callback) {
-  
+
       if (!lodash.isArray(documentIds)) {
         callback('documentIds_is_not_an_array');
         return;
       }
-  
+
       documentIds = lodash.map(documentIds, function(documentId) {
         if (documentId instanceof ObjectId) {
           return documentId;
@@ -181,7 +185,7 @@ function Service(params) {
           return ObjectId(documentId);
         }
       });
-  
+
       getClient().collection(entityName).find({
         _id: {
           $in: documentIds
@@ -198,23 +202,23 @@ function Service(params) {
       });
     })();
   };
-  
+
   this.getOneToManyTargetsBySourceId = function(entityName, sourceIdName, sourceId) {
     let self = this;
     return Promise.promisify(function(callback) {
       if (!(sourceId instanceof ObjectId)) {
         sourceId = ObjectId(sourceId);
       }
-  
+
       let criteria = {};
       criteria[sourceIdName] = sourceId;
-  
+
       getClient().collection(entityName).find(criteria).toArray(function(err, docs) {
         callback(err, docs);
       });
     })();
   };
-  
+
   this.getHierarchicalDocumentsToTop = function(entity, documentId) {
     let self = this;
     let documents = [];
@@ -236,7 +240,7 @@ function Service(params) {
       });
     })();
   };
-  
+
   this.getChainToTopOfHierarchicalDocumentsByIds = function(entityName, documentIds) {
     let self = this;
     let documents = [];
@@ -258,7 +262,7 @@ function Service(params) {
     };
     return Promise.promisify(scanDocuments)();
   };
-  
+
   this.insertDocument = function(entity, documents) {
     let self = this;
     return Promise.promisify(function (done) {
@@ -274,7 +278,7 @@ function Service(params) {
       });
     })();
   };
-  
+
   this.updateDocument = function(entity, criteria, data, options) {
     let self = this;
     options = options || {multi: true, upsert: false};
@@ -292,7 +296,7 @@ function Service(params) {
     };
     return Promise.promisify(promisee)();
   };
-  
+
   this.deleteDocument = function(entityName, criteria) {
     let self = this;
     let promisee = function (done) {
@@ -309,7 +313,7 @@ function Service(params) {
     };
     return Promise.promisify(promisee)();
   };
-  
+
   this.getDocumentSummary = function() {
     let self = this;
     return Promise.resolve().then(function() {
