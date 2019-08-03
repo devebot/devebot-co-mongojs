@@ -9,11 +9,9 @@ const Promise = Devebot.require('bluebird');
 const lodash = Devebot.require('lodash');
 const chores = require('./utils/chores');
 
-function Service(params) {
-  params = params || {};
-
-  let LX = params.logger || chores.emptyLogger;
-  let LT = params.tracer;
+function Service(params = {}) {
+  const LX = params.logger || chores.emptyLogger;
+  const LT = params.tracer;
 
   let tracking_code = params.tracking_code || (new Date()).toISOString();
 
@@ -32,11 +30,11 @@ function Service(params) {
 
   let _client = null;
 
-  let getClient = function () {
+  const getClient = function () {
     return _client = _client || mongojs(connection_string, lodash.values(mongo_cols));
   }
 
-  let closeClient = function (forced) {
+  const closeClient = function (forced) {
     if (_client == null) return Promise.resolve();
     let db_close = Promise.promisify(_client.close, { context: _client });
     _client = null;
